@@ -3,20 +3,22 @@
 角色系统概述
 =======================
 
-PostgREST is designed to keep the database at the center of API security. All authorization happens through database roles and permissions. It is PostgREST's job to **authenticate** requests -- i.e. verify that a client is who they say they are -- and then let the database **authorize** client actions.
+PostgREST旨在将数据库保持在API安全性的中心。 所有授权都通过数据库角色和权限进行。 PostgREST的工作是**验证**请求 - 即验证客户端是否是他们所说的 - 然后让数据库**授权**客户端操作。
 
 验证序列
 -----------------------
 
-There are three types of roles used by PostgREST, the **authenticator**, **anonymous** and **user** roles. The database administrator creates these roles and configures PostgREST to use them.
+the **authenticator**, **anonymous** and **user** roles. 
+PostgREST使用三种类型的角色，**身份验证器**，**匿名**和**用户**角色。 数据库管理员创建这些角色并配置PostgREST以使用它们。
 
 .. image:: _static/security-roles.png
 
-The authenticator should be created :code:`NOINHERIT` and configured in the database to have very limited access. It is a chameleon whose job is to "become" other users to service authenticated HTTP requests. The picture below shows how the server handles authentication. If auth succeeds, it switches into the user role specified by the request, otherwise it switches into the anonymous role.
+The authenticator
+应该创建身份验证器：代码：`NOINHERIT`并在数据库中配置以获得非常有限的访问权限。 它是一个变色龙，其工作是“成为”其他用户来为经过身份验证的HTTP请求提供服务。 下图显示了服务器如何处理身份验证。 如果auth成功，它将切换到请求指定的用户角色，否则将切换到匿名角色。
 
 .. image:: _static/security-anon-choice.png
 
-Here are the technical details. We use `JSON Web Tokens <http://jwt.io/>`_ to authenticate API requests. As you'll recall a JWT contains a list of cryptographically signed claims. All claims are allowed but PostgREST cares specifically about a claim called role.
+Here are the technical details. We use `JSON Web Tokens <http://jwt.io/>`_ to authenticate API requests.您可能还记得JWT包含加密签名声明的列表。 所有索赔都是允许的，但PostgREST特别关注一个名为角色role的声明。
 
 .. code:: json
 
@@ -24,31 +26,31 @@ Here are the technical details. We use `JSON Web Tokens <http://jwt.io/>`_ to au
     "role": "user123"
   }
 
-When a request contains a valid JWT with a role claim PostgREST will switch to the database role with that name for the duration of the HTTP request.
+当请求包含具有角色声明的有效JWT时，PostgREST将在HTTP请求期间切换到具有该名称的数据库角色。
 
 .. code:: sql
 
   SET LOCAL ROLE user123;
 
-Note that the database administrator must allow the authenticator role to switch into this user by previously executing
+请注意，通过先前的操作，数据库管理员必须允许身份验证者角色来切换到此用户
 
 .. code:: sql
 
   GRANT user123 TO authenticator;
 
-If the client included no JWT (or one without a role claim) then PostgREST switches into the anonymous role whose actual database-specific name, like that of with the authenticator role, is specified in the PostgREST server configuration file. The database administrator must set anonymous role permissions correctly to prevent anonymous users from seeing or changing things they shouldn't.
+如果客户端不包含JWT（或没有角色声明的JWT），则PostgREST将切换到匿名角色，该角色的实际数据库特定名称（如使用验证者角色的名称）在PostgREST服务器配置文件中指定。 数据库管理员必须正确设置匿名角色权限，以防止匿名用户查看或更改他们不应该访问的内容。
 
 用户和组
 ----------------
 
-PostgreSQL manages database access permissions using the concept of roles. A role can be thought of as either a database user, or a group of database users, depending on how the role is set up.
+PostgreSQL使用角色的概念管理数据库访问权限。 可以将角色role视为数据库用户或一组数据库用户，具体取决于角色的设置方式。
 
 每个 Web 用户的角色
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-PostgREST can accommodate either viewpoint. If you treat a role as a single user then the the JWT-based role switching described above does most of what you need. When an authenticated user makes a request PostgREST will switch into the role for that user, which in addition to restricting queries, is available to SQL through the :code:`current_user` variable.
+PostgREST可以适应任何一个观点。 如果您将角色视为单个用户，那么上述基于JWT的角色切换可以完成您所需的大部分工作。 当经过身份验证的用户发出请求时，PostgREST将切换到该用户的角色，除了限制查询之外，SQL还可以通过：code：`current_user`变量使用该角色。
 
-You can use row-level security to flexibly restrict visibility and access for the current user. Here is an `example <http://blog.2ndquadrant.com/application-users-vs-row-level-security/>`_ from Tomas Vondra, a chat table storing messages sent between users. Users can insert rows into it to send messages to other users, and query it to see messages sent to them by other users.
+您可以使用行级安全性灵活地限制当前用户的可见性和访问权限。 以下是来自Tomas Vondra的示例<http://blog.2ndquadrant.com/application-users-vs-row-level-security/>`_，这是一个存储用户之间发送的消息的聊天表。 用户可以在其中插入行以向其他用户发送消息，并查询它以查看其他用户发送给他们的消息。
 
 .. code:: sql
 
@@ -61,9 +63,9 @@ You can use row-level security to flexibly restrict visibility and access for th
     message_body    TEXT
   );
 
-We want to enforce a policy that ensures a user can see only those messages sent by him or intended for him. Also we want to prevent a user from forging the message_from column with another person's name.
+我们希望实施一项政策，确保用户只能看到他发送或打算发给他的那些消息。 此外，我们还希望阻止用户使用其他人的姓名伪造message_from列。
 
-PostgreSQL (9.5 and later) allows us to set this policy with row-level security:
+PostgreSQL（9.5及更高版本）允许我们使用行级安全性设置此策略：
 
 .. code:: sql
 
@@ -71,12 +73,12 @@ PostgreSQL (9.5 and later) allows us to set this policy with row-level security:
     USING ((message_to = current_user) OR (message_from = current_user))
     WITH CHECK (message_from = current_user)
 
-Anyone accessing the generated API endpoint for the chat table will see exactly the rows they should, without our needing custom imperative server-side coding.
+访问生成的聊天表API端点的任何人都将看到他们应该准确的行，而无需我们需要自定义命令式服务器端编码。
 
 Web 用户共享角色
 ~~~~~~~~~~~~~~~~~~~~~~
 
-Alternately database roles can represent groups instead of (or in addition to) individual users. You may choose that all signed-in users for a web app share the role webuser. You can distinguish individual users by including extra claims in the JWT such as email.
+或者，数据库角色可以代表组而不是个别用户（或个别除外）。 您可以选择Web应用程序的所有已登录用户共享同一个webuser角色。 您可以通过在JWT中包含额外声明来甄别/排除具体某个用户，例如通过电子邮件。
 
 .. code:: json
 
@@ -85,7 +87,7 @@ Alternately database roles can represent groups instead of (or in addition to) i
     "email": "john@doe.com"
   }
 
-SQL code can access claims through GUC variables set by PostgREST per request. For instance to get the email claim, call this function:
+SQL代码可以通过PostgREST按请求设置的GUC变量访问声明。 例如，要获取电子邮件声明，请调用此函数：
 
 .. code:: sql
 
@@ -96,7 +98,7 @@ This allows JWT generation services to include extra information and your databa
 混合用户组角色
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-There is no performance penalty for having many database roles, although roles are namespaced per-cluster rather than per-database so may be prone to collision within the database. You are free to assign a new role for every user in a web application if desired. You can mix the group and individual role policies. For instance we could still have a webuser role and individual users which inherit from it:
+拥有许多数据库角色没有性能损失，尽管角色是按群集命名而不是按数据库命名，因此可能容易在数据库中发生冲突。 如果需要，您可以自由为Web应用程序中的每个用户分配新角色。 您可以混合组和单个角色策略。 例如，我们仍然可以拥有一个webuser角色和从中继承的个人用户：
 
 .. code:: sql
 
@@ -116,15 +118,15 @@ There is no performance penalty for having many database roles, although roles a
 自定义验证
 -----------------
 
-PostgREST honors the :code:`exp` claim for token expiration, rejecting expired tokens. However it does not enforce any extra constraints. An example of an extra constraint would be to immediately revoke access for a certain user. The configuration file paramter :code:`pre-request` specifies a stored procedure to call immediately after the authenticator switches into a new role and before the main query itself runs.
+PostgREST通过代码：`exp`声明令牌到期，拒绝过期的令牌。 但是，它不会强制执行任何额外的约束。 额外约束的一个示例是立即撤销对特定用户的访问。 配置文件参数：code：`pre-request`指定在验证者切换到新角色之后和主查询本身运行之前立即调用的存储过程。
 
-Here's an example. In the config file specify a stored procedure:
+这是一个例子。 在配置文件中指定存储过程：
 
 .. code:: ini
 
   pre-request = "public.check_user"
 
-In the function you can run arbitrary code to check the request and raise an exception to block it if desired.
+在该函数中，您可以运行任意代码来检查请求，并根据需要引发异常以阻止它。
 
 .. code:: sql
 
@@ -142,7 +144,7 @@ In the function you can run arbitrary code to check the request and raise an exc
 客户端 Auth
 ===========
 
-To make an authenticated request the client must include an :code:`Authorization` HTTP header with the value :code:`Bearer <jwt>`. For instance:
+要进行经过身份验证的请求，客户端必须包含：code：`Authorization` HTTP标头，其值为：code：`Bearer <jwt>`。 例如：
 
 .. code:: http
 
@@ -152,14 +154,14 @@ To make an authenticated request the client must include an :code:`Authorization
 JWT Generation
 --------------
 
-You can create a valid JWT either from inside your database or via an external service. Each token is cryptographically signed with a secret passphrase -- the signer and verifier share the secret. Hence any service that shares a passphrase with a PostgREST server can create valid JWT. (PostgREST currently supports only the HMAC-SHA256 signing algorithm.)
+您可以从数据库内部或通过外部服务创建有效的JWT。 每个令牌都使用秘密密码加密签名 - 签名者和验证者共享秘密。 因此，与PostgREST服务器共享密码的任何服务都可以创建有效的JWT。 （PostgREST目前仅支持HMAC-SHA256签名算法。）
 
 JWT from SQL
 ~~~~~~~~~~~~
 
-You can create JWT tokens in SQL using the `pgjwt extension <https://github.com/michelp/pgjwt>`_. It's simple and requires only pgcrypto. If you're on an environment like Amazon RDS which doesn't support installing new extensions, you can still manually run the SQL inside pgjwt which creates the functions you will need.
+您可以使用`pgjwt extension <https://github.com/michelp/pgjwt>`_在SQL中创建JWT令牌。 它很简单，只需要pgcrypto。 如果您使用的是不支持安装新扩展的Amazon RDS等环境，您仍然可以在pgjwt中手动运行SQL，从而创建您需要的功能。
 
-Next write a stored procedure that returns the token. The one below returns a token with a hard-coded role, which expires five minutes after it was issued. Note this function has a hard-coded secret as well.
+接下来编写一个返回令牌的存储过程。 下面的一个返回一个带有硬编码角色的令牌，该角色在发布后五分钟到期。 请注意，此函数也有一个硬编码的密码。
 
 .. code:: sql
 
@@ -180,11 +182,12 @@ Next write a stored procedure that returns the token. The one below returns a to
     ) r;
   $$;
 
-PostgREST exposes this function to clients via a POST request to `/rpc/jwt_test`.
+
+PostgREST通过对`/rpc/jwt_test`进行POST请求，来向客户端暴露此函数（函数都是这样/rpc定义访问）。
 
 .. note::
 
-  To avoid hard-coding the secret in stored procedures, save it as a property of the database.
+ 要避免对存储过程中的密钥进行硬编码，请将其另存为数据库的属性。
 
   .. code-block:: postgres
 
@@ -200,11 +203,11 @@ PostgREST exposes this function to clients via a POST request to `/rpc/jwt_test`
 JWT from Auth0
 ~~~~~~~~~~~~~~
 
-An external service like `Auth0 <https://auth0.com/>`_ can do the hard work transforming OAuth from Github, Twitter, Google etc into a JWT suitable for PostgREST. Auth0 can also handle email signup and password reset flows.
+像Auth0 <https://auth0.com/>`_这样的外部服务可以将OAuth从Github，Twitter，Google等转变为适合PostgREST的JWT。 Auth0还可以处理电子邮件注册和密码重置流程。
 
-To use Auth0, copy its client secret into your PostgREST configuration file as the :code:`jwt-secret`. (Old-style Auth0 secrets are Base64 encoded. For these secrets set :code:`secret-is-base64` to :code:`true`, or just refresh the Auth0 secret.) You can find the secret in the client settings of the Auth0 management console.
+要使用Auth0，请将其客户端密钥复制到PostgREST配置文件中，如下所示：code：`jwt-secret`。 （旧式的Auth0秘密是Base64编码的。对于这些秘密设置：代码：`secret-is-base64` to：code：`true`，或者只刷新Auth0秘密。）你可以在客户端设置中找到秘密。 Auth0管理控制台。
 
-Our code requires a database role in the JWT. To add it you need to save the database role in Auth0 `app metadata <https://auth0.com/docs/rules/metadata-in-rules>`_. Then, you will need to write a rule that will extract the role from the user metadata and include a :code:`role` claim in the payload of our user object. Afterwards, in your Auth0Lock code, include the :code:`role` claim in your `scope param <https://auth0.com/docs/libraries/lock/v10/sending-authentication-parameters#scope-string->`_.
+我们的代码需要JWT中的数据库角色。要添加它，您需要将数据库角色保存在Auth0`app metadata <https://auth0.com/docs/rules/metadata-in-rules>`_中。然后，您将需要编写一个规则，该规则将从用户元数据中提取角色，并在我们的用户对象的有效负载中包含：code：`role`声明。然后，在您的Auth0Lock代码中，在您的`scope param <https://auth0.com/docs/libraries/lock/v10/sending-authentication-parameters#scope-string->中包含：code：`role`声明。
 
 .. code:: javascript
 
@@ -231,27 +234,26 @@ Our code requires a database role in the JWT. To add it you need to save the dat
 JWT 安全
 ~~~~~~~~~~~~
 
-There are at least three types of common critiques against using JWT: 1) against the standard itself, 2) against using libraries with known security vulnerabilities, and 3) against using JWT for web sessions. We'll briefly explain each critique, how PostgREST deals with it, and give recommendations for appropriate user action.
+对于使用JWT，至少有三种常见的批评：1）针对标准本身，2）反对使用具有已知安全漏洞的库，以及3）反对使用JWT进行Web会话。我们将简要解释每个批评，PostgREST如何处理它，并为适当的用户操作提供建议。
 
-The critique against the `JWT standard <https://tools.ietf.org/html/rfc7519>`_ is voiced in detail `elsewhere on the web <https://paragonie.com/blog/2017/03/jwt-json-web-tokens-is-bad-standard-that-everyone-should-avoid>`_. The most relevant part for PostgREST is the so-called :code:`alg=none` issue. Some servers implementing JWT allow clients to choose the algorithm used to sign the JWT. In this case, an attacker could set the algorithm to :code:`none`, remove the need for any signature at all and gain unauthorized access. The current implementation of PostgREST, however, does not allow clients to set the signature algorithm in the HTTP request, making this attack irrelevant. The critique against the standard is that it requires the implementation of the :code:`alg=none` at all.
+关于“JWT标准<https://tools.ietf.org/html/rfc7519>`_的批评在网上其他地方详细说明<https://paragonie.com/blog/2017/03/jwt- JSON-Web的标记 - 是 - 坏标准是，每个人，应该规避>`_。 PostgREST最相关的部分是所谓的：代码：`alg = none`问题。一些实现JWT的服务器允许客户端选择用于签署JWT的算法。在这种情况下，攻击者可以将算法设置为：code：`none`，根本不需要任何签名，并获得未经授权的访问。但是，PostgREST的当前实现不允许客户端在HTTP请求中设置签名算法，从而使此攻击无关紧要。对标准的批评是它需要执行：code：`alg = none`。
 
-Critiques against JWT libraries are only relevant to PostgREST via the library it uses. As mentioned above, not allowing clients to choose the signature algorithm in HTTP requests removes the greatest risk. Another more subtle attack is possible where servers use asymmetric algorithms like RSA for signatures. Once again this is not relevant to PostgREST since it is not supported. Curious readers can find more information in `this article <https://auth0.com/blog/critical-vulnerabilities-in-json-web-token-libraries/>`_. Recommendations about high quality libraries for usage in API clients can be found on `jwt.io <https://jwt.io/>`_.
+对JWT库的批评仅通过它使用的库与PostgREST相关。如上所述，不允许客户端在HTTP请求中选择签名算法会消除最大的风险。如果服务器使用RSA等非对称算法进行签名，则可能会发生另一种更微妙的攻击。这再次与PostgREST无关，因为它不受支持。好奇的读者可以在本文<https://auth0.com/blog/critical-vulnerabilities-in-json-web-token-libraries/>`_中找到更多信息。有关在API客户端中使用的高质量库的建议，请参阅`jwt.io <https://jwt.io/>`_。
 
-The last type of critique focuses on the misuse of JWT for maintaining web sessions. The basic recommendation is to `stop using JWT for sessions <http://cryto.net/~joepie91/blog/2016/06/13/stop-using-jwt-for-sessions/>`_ because most, if not all, solutions to the problems that arise when you do, `do not work <http://cryto.net/~joepie91/blog/2016/06/19/stop-using-jwt-for-sessions-part-2-why-your-solution-doesnt-work/>`_. The linked articles discuss the problems in depth but the essence of the problem is that JWT is not designed to be secure and stateful units for client-side storage and therefore not suited to session management.
+最后一种批评的重点是滥用JWT来维护网络会话。基本建议是“停止使用JWT进行会话<http://cryto.net/~joepie91/blog/2016/06/13/stop-using-jwt-for-sessions/>`_因为大多数（如果不是全部） ，当你做的时候出现的问题的解决方案，``不工作<http://cryto.net/~joepie91/blog/2016/06/19/stop-using-jwt-for-sessions-part-2-why - 您的溶液-犯规工作/>`_。链接的文章深入讨论了这些问题，但问题的实质是JWT并非设计为客户端存储的安全和有状态单元，因此不适合会话管理。
 
-PostgREST uses JWT mainly for authentication and authorization purposes and encourages users to do the same. For web sessions, using cookies over HTTPS is good enough and well catered for by standard web frameworks.
-
+PostgREST主要使用JWT进行身份验证和授权，并鼓励用户也这样做。对于Web会话，使用基于HTTPS的cookie非常好，并且可以通过标准Web框架进行良好的迎合。
 .. _ssl:
 
 SSL
 ---
 
-PostgREST aims to do one thing well: add an HTTP interface to a PostgreSQL database. To keep the code small and focused we do not implement SSL. Use a reverse proxy such as NGINX to add this, `here's how <https://nginx.org/en/docs/http/configuring_https_servers.html>`_. Note that some Platforms as a Service like Heroku also add SSL automatically in their load balancer.
+PostgREST旨在做好一件事：为PostgreSQL数据库添加HTTP接口。 为了保持代码小而集中，我们不实现SSL。 使用像NGINX这样的反向代理来添加它，“这里是如何<https://nginx.org/en/docs/http/configuring_https_servers.html>`_。 请注意，像Heroku这样的某些平台即服务也会在其负载均衡器中自动添加SSL。
 
 架构隔离
 ================
 
-A PostgREST instance is configured to expose all the tables, views, and stored procedures of a single schema specified in a server configuration file. This means private data or implementation details can go inside a private schema and be invisible to HTTP clients. You can then expose views and stored procedures which insulate the internal details from the outside world. It keeps you code easier to refactor, and provides a natural way to do API versioning. For an example of wrapping a private table with a public view see the :ref:`public_ui` section below.
+PostgREST实例配置为公开服务器配置文件中指定的单个模式的所有表，视图和存储过程。 这意味着私有数据或实现细节可以进入私有模式，并且对HTTP客户端是不可见的。 然后，您可以公开视图和存储过程，从而将内部细节与外部世界隔离开来。 它使代码更容易重构，并提供了一种自然的方式来进行API版本控制。 有关使用公共视图包装私有表的示例，请参阅下面的：ref：`public_ui`部分。
 
 SQL 用户管理
 ===================
@@ -259,17 +261,17 @@ SQL 用户管理
 存储用户和密码
 ---------------------------
 
-As mentioned, an external service can provide user management and coordinate with the PostgREST server using JWT. It's also possible to support logins entirely through SQL. It's a fair bit of work, so get ready.
+如上所述，外部服务可以提供用户管理并使用JWT与PostgREST服务器协调。 也可以完全通过SQL支持登录。 这是一项相当多的工作，所以准备好了。
 
-The following table, functions, and triggers will live in a :code:`basic_auth` schema that you shouldn't expose publicly in the API. The public views and functions will live in a different schema which internally references this internal information.
+下表，函数和触发器将存在于：code：`basic_auth`模式中，您不应在API中公开公开。 公共视图和函数将存在于不同的模式中，该模式在内部引用此内部信息。
 
-First we'll need a table to keep track of our users:
+首先，我们需要一个表来跟踪我们的用户：
 
 .. code:: sql
 
-  -- We put things inside the basic_auth schema to hide
-  -- them from public view. Certain public procs/views will
-  -- refer to helpers and tables inside.
+  -- 我们将内容置于basic_auth模式中，
+  -- 以将其隐藏在公共视图中。 
+  -- 某些公共过程/视图将引用内部的帮助程序和表。
   create schema if not exists basic_auth;
 
   create table if not exists
@@ -279,7 +281,7 @@ First we'll need a table to keep track of our users:
     role     name not null check (length(role) < 512)
   );
 
-We would like the role to be a foreign key to actual database roles, however PostgreSQL does not support these constraints against the :code:`pg_roles` table. We'll use a trigger to manually enforce it.
+我们希望该角色role是实际数据库角色的外键，但是PostgreSQL不支持对：code：`pg_roles`表的这些约束。 我们将使用触发器手动强制执行它。
 
 .. code:: plpgsql
 
@@ -303,7 +305,7 @@ We would like the role to be a foreign key to actual database roles, however Pos
     for each row
     execute procedure basic_auth.check_role_exists();
 
-Next we'll use the pgcrypto extension and a trigger to keep passwords safe in the :code:`users` table.
+接下来，我们将使用pgcrypto扩展和触发器来保密密码：code：`users`表。
 
 .. code:: plpgsql
 
@@ -327,7 +329,7 @@ Next we'll use the pgcrypto extension and a trigger to keep passwords safe in th
     for each row
     execute procedure basic_auth.encrypt_pass();
 
-With the table in place we can make a helper to check a password against the encrypted column. It returns the database role for a user if the email and password are correct.
+使用该表，我们可以帮助检查加密列的密码。 如果电子邮件和密码正确，它将返回用户的数据库角色。
 
 .. code:: plpgsql
 
@@ -349,12 +351,12 @@ With the table in place we can make a helper to check a password against the enc
 Public 用户界面
 ---------------------
 
-In the previous section we created an internal table to store user information. Here we create a login function which takes an email address and password and returns JWT if the credentials match a user in the internal table.
+在上一节中，我们创建了一个用于存储用户信息的内部表。 在这里，我们创建一个登录函数，它接受一个电子邮件地址和密码，如果凭据与内部表中的用户匹配，则返回JWT。
 
 登录
 ~~~~~~
 
-As described in `JWT from SQL`_, we'll create a JWT inside our login function. Note that you'll need to adjust the secret key which is hard-coded in this example to a secure secret of your choosing.
+如``JWT from SQL`_中所述，我们将在登录函数中创建一个JWT。 请注意，您需要将此示例中硬编码的密钥调整为您选择的安全密钥。
 
 .. code:: plpgsql
 
@@ -384,7 +386,7 @@ As described in `JWT from SQL`_, we'll create a JWT inside our login function. N
   end;
   $$;
 
-An API request to call this function would look like:
+调用此函数的API请求如下所示：
 
 .. code:: http
 
@@ -392,7 +394,7 @@ An API request to call this function would look like:
 
   { "email": "foo@bar.com", "pass": "foobar" }
 
-The response would look like the snippet below. Try decoding the token at `jwt.io <https://jwt.io/>`_. (It was encoded with a secret of :code:`mysecret` as specified in the SQL code above. You'll want to change this secret in your app!)
+响应看起来像下面的代码段。 尝试在`jwt.io <https://jwt.io/>`_解码令牌。 （它的编码带有以下秘密：代码：`mysecret`，如上面的SQL代码中所指定的。你将会在你的应用程序中更改这个秘密！）
 
 .. code:: json
 
@@ -403,12 +405,12 @@ The response would look like the snippet below. Try decoding the token at `jwt.i
 权限
 ~~~~~~~~~~~
 
-Your database roles need access to the schema, tables, views and functions in order to service HTTP requests. Recall from the `Overview of Role System`_ that PostgREST uses special roles to process requests, namely the authenticator and anonymous roles. Below is an example of permissions that allow anonymous users to create accounts and attempt to log in.
+您的数据库角色需要访问模式，表，视图和函数才能为HTTP请求提供服务。 回想一下“角色系统概述”_，PostgREST使用特殊角色来处理请求，即身份验证者和匿名角色。 以下是允许匿名用户创建帐户并尝试登录的权限示例。
 
 .. code:: sql
 
-  -- the names "anon" and "authenticator" are configurable and not
-  -- sacred, we simply choose them for clarity
+  -- 名称“anon”和“authenticator”是可配置的
+  -- 而不是关键词，我们只是为了清晰起见而选择它们
   create role anon;
   create role authenticator noinherit;
   grant anon to authenticator;
@@ -417,4 +419,5 @@ Your database roles need access to the schema, tables, views and functions in or
   grant select on table pg_authid, basic_auth.users to anon;
   grant execute on function login(text,text) to anon;
 
-You may be worried from the above that anonymous users can read everything from the :code:`basic_auth.users` table. However this table is not available for direct queries because it lives in a separate schema. The anonymous role needs access because the public :code:`users` view reads the underlying table with the permissions of the calling user. But we have made sure the view properly restricts access to sensitive information.
+您可能会担心，匿名用户可以从：code：`basic_auth.users`表中读取所有内容。 但是，此表不适用于直接查询，因为它位于单独的架构中。 匿名角色需要访问，因为public：code：`users`视图使用调用用户的权限读取基础表。 但我们已确保视图正确限制对敏感信息的访问。
+
