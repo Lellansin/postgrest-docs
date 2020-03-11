@@ -94,40 +94,40 @@ PostgREST 测试套件
 创建测试库
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-To properly run postgrest tests one needs to create a database. To do so, use the test creation script :code:`create_test_database` in the :code:`test/` folder.
+为了正确运行postgrest进行测试，首先需要创建一个数据库。为此，请使用:code:`test/`目录下为测试准备的建库脚本:code:`create_test_database`。
 
-The script expects the following parameters:
+脚本需要以下参数：
 
 .. code:: bash
 
   test/create_test_db connection_uri database_name [test_db_user] [test_db_user_password]
 
-Use the `connection URI <https://www.postgresql.org/docs/current/static/libpq-connect.html#AEN45347>`_ to specify the user, password, host, and port. Do not provide the database in the connection URI. The Postgres role you are using to connect must be capable of creating new databases.
+使用`connection URI <https://www.postgresql.org/docs/current/static/libpq-connect.html#AEN45347>`_ 去指定数据库用户、密码、主机以及端口。不要在数据库连接URI中提供数据库。用于连接的Postgres必须拥有能够创建新数据库的能力。
 
-The :code:`database_name` is the name of the database that :code:`stack test` will connect to. If the database of the same name already exists on the server, the script will first drop it and then re-create it.
+脚本中的:code:`database_name`参数，是将要连接到的数据库名称。如果服务器上已存在同名数据库，则脚本将删除该数据库，然后进行重新创建。
 
-Optionally, specify the database user :code:`stack test` will use. The user will be given necessary permissions to reset the database after every test run.
+如果使用指定的数据库用户进行堆栈测试。每次测试运行后，用户都将获得重置数据库所需的权限。
 
-If the user is not specified, the script will generate the role name :code:`postgrest_test_` suffixed by the chosen database name, and will generate a random password for it.
+如果未指定用户，脚本将会生成角色名:code:`postgrest_test_`，并以所选数据库名作为后缀，而且还会自动生成一个随机密码。
 
-Optionally, if specifying an existing user to be used for the test connection, one can specify the password the user has.
+如果使用一个已经存在的用户来进行测试连接，那么还需要指定该用户的密码。
 
-The script will return the db uri to use in the tests--this uri corresponds to the :code:`db-uri` parameter in the configuration file that one would use in production.
+该脚本将返回测试过程中使用的数据uri - 该uri与将在生产中使用的配置文件参数:code:`db-uri`相对应。
 
-Generating the user and the password allows one to create the database and run the tests against any postgres server without any modifications to the server. (Such as allowing accounts without a passoword or setting up trust authentication, or requiring the server to be on the same localhost the tests are run from).
+生成用户和密码允许创建数据库并对任何postgres服务器运行测试，而无需对服务器进行任何修改。（例如，允许没有密码的帐户或设置信任身份验证，或要求服务器位于运行测试的同一本地主机上）。
 
 运行测试
 ~~~~~~~~~~~~~~~~~
 
-To run the tests, one must supply the database uri in the environment variable :code:`POSTGREST_TEST_CONNECTION`.
+为了运行测试，必须在环境变量中提供数据库的uri信息，对应的变量名称为:code:`POSTGREST_TEST_CONNECTION`。
 
-Typically, one would create the database and run the test in the same command line, using the `postgres` superuser:
+通常情况下，创建数据库与运行测试命令会在同一命令行中执行，并且使用超级用户`postgres`：
 
 .. code:: bash
 
   POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://postgres:pwd@database-host" test_db) stack test
 
-For repeated runs on the same database, one should export the connection variable:
+在同一数据库中重复运行时，应该导出数据库连接变量信息：
 
 .. code:: bash
 
@@ -136,18 +136,18 @@ For repeated runs on the same database, one should export the connection variabl
   stack test
   ...
 
-If the environment variable is empty or not specified, then the test runner will default to connection uri
+如果环境变量为空或未指定，那么测试的运行程序将会默认连接uri
 
 .. code:: bash
 
   postgres://postgrest_test@localhost/postgrest_test
 
-This connection assumes the test server on the :code:`localhost:code:` with the user `postgrest_test` without the password and the database of the same name.
+上述连接假定测试的服务器在本地:code:`localhost:code:`，并且数据库用户`postgrest_test`没有指定密码和同名的数据库。
 
 销毁数据库
 ~~~~~~~~~~~~~~~~~~~~~~~
 
-The test database will remain after the test, together with four new roles created on the postgres server. To permanently erase the created database and the roles, run the script :code:`test/delete_test_database`, using the same superuser role used for creating the database:
+测试完成之后，测试数据库将会被保留，同时还会在postgres服务器上创建四个新角色。如果需要永久性删除已创建的数据库和角色，请使用与创建数据库相同的超级用户角色执行脚本:code:`test/delete_test_database`：
 
 .. code:: bash
 
@@ -156,34 +156,34 @@ The test database will remain after the test, together with four new roles creat
 使用 Docker 测试
 ~~~~~~~~~~~~~~~~~~~
 
-The ability to connect to non-local PostgreSQL simplifies the test setup. One elegant way of testing is to use a disposable PostgreSQL in docker.
+为了简化连接非本地环境PostgreSQL的测试环境设置，可以使用一种非常简洁的方式，在docker中创建一个PostgreSQL。
 
-For example, if local development is on a mac with Docker for Mac installed:
+例如，如果是在mac上做本地开发（且已经安装了Docker服务），可执行以下命令进行安装：
 
 .. code:: bash
 
   $ docker run --name db-scripting-test -e POSTGRES_PASSWORD=pwd -p 5434:5432 -d postgres
   $ POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://postgres:pwd@localhost:5434" test_db) stack test
 
-Additionally, if one creates a docker container to run stack test (this is necessary on MacOS Sierra with GHC below 8.0.1, where :code:`stack test` fails), one can run PostgreSQL in a separate linked container, or use the locally installed Postgres.app.
+此外，如果通过创建docker容器运行来运行堆栈测试（对于GHC低于8.0.1的MacOS Sierra是必要的，在:code:`stack test`会提示异常），你可以在单独的容器中运行PostgreSQL，也可以使用本地安装的Postgres.app。
 
-Build the test container with :code:`test/Dockerfile.test`:
+使用以下脚本构建测试使用的容器:code:`test/Dockerfile.test`：
 
 .. code:: bash
 
   $ docker build -t pgst-test - < test/Dockerfile.test
   $ mkdir .stack-work-docker ~/.stack-linux
 
-The first run of the test container will take a long time while the dependencies get cached. Creating the :code:`~/.stack-linux` folder and mapping it as a volume into the container ensures that we can run the container in disposable mode and not worry about subsequent runs being slow. :code:`.stack-work-docker` is also mapped into the container and must be specified when using stack from Linux, not to interfere with the :code:`.stack-work` for local development. (On Sierra, :code:`stack build` works, while :code:`stack test` fails with GHC 8.0.1).
+在测试容器首次运行时，将会花费较长的时间，因为需要缓存相应的依赖资源。创建:code:`~/.stack-linux`文件夹作为容器的挂载卷，以确保我们在一次性模式下运行容器而且不必担心随后的运行会变的迟缓。:code:`.stack-work-docker`同样需要映射至容器中，在使用Linux中的stack时必须指定，以免干扰本地开发的:code:`.stack work`。（在Sierra上:code:`stack build`可以正常使用，而:code:`stack test`在GHC 8.0.1中不会起作用）
 
-Linked containers:
+文件夹映射至docker容器中：
 
 .. code:: bash
 
   $ docker run --name pg -e POSTGRES_PASSWORD=pwd  -d postgres
   $ docker run --rm -it -v `pwd`:`pwd` -v ~/.stack-linux:/root/.stack --link pg:pg -w="`pwd`" -v `pwd`/.stack-work-docker:`pwd`/.stack-work pgst-test bash -c "POSTGREST_TEST_CONNECTION=$(test/create_test_db "postgres://postgres:pwd@pg" test_db) stack test"
 
-Stack test in Docker for Mac, Postgres.app on mac:
+在mac上，Docker的堆栈测试方式如下：
 
 .. code:: bash
 
